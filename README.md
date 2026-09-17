@@ -4,7 +4,7 @@ A small `/roll notation` command served through Discord's HTTP interactions API.
 
 Examples: `/roll d6`, `/roll 2d20+3`, `/roll 3d6-2`.
 
-This is an AI-assisted sample. All 32 automated tests and the local Worker runtime smoke test pass. A live deployment was verified in a separate Discord test server on September 17, 2026: `/roll 2d20+3` returned `2d20+3: [2, 16] = 21`. It is not a completed client project.
+This is an AI-assisted sample. All 32 automated tests and the local Worker runtime smoke test pass. A live deployment was verified in a separate Discord test server on September 17, 2026: `/roll 2d20+3` returned `2d20+3: [2, 16] = 21`, and `/roll 101d6` returned an error marked "Only you can see this". It is not a completed client project.
 
 ## Scope
 

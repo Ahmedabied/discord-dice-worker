@@ -1,0 +1,19 @@
+{
+  "name": "discord-dice-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "types": "wrangler types --strict-vars false",
+    "check:types": "wrangler types --strict-vars false --check",
+    "check:deploy": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.3",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2",
+    "wrangler": "4.134.0"
+  }
+}

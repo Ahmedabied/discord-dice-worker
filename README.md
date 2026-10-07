@@ -1,43 +1,36 @@
-# Discord dice command on a Worker
+# discord-dice-worker
 
-A small `/roll notation` command served through Discord's HTTP interactions API. It runs when Discord sends a request, so no computer or continuously running bot process is needed.
+A `/roll` slash command for Discord that runs on a Cloudflare Worker instead of a bot server.
 
-Examples: `/roll d6`, `/roll 2d20+3`, `/roll 3d6-2`.
+`/roll d6`, `/roll 2d20+3`, `/roll 3d6-2`
 
-This is an AI-assisted sample. All 32 automated tests and the local Worker runtime smoke test pass. A live deployment was verified in a separate Discord test server on September 17, 2026: `/roll 2d20+3` returned `2d20+3: [2, 16] = 21`, and `/roll 101d6` returned an error marked "Only you can see this". It is not a completed client project.
+Most Discord bots keep a process online around the clock, holding a Gateway connection open. This one doesn't. Discord sends each command to the Worker as a signed HTTP request, the Worker rolls and answers, and that's it. Nothing to keep alive, nothing to restart, it answers from the edge closest to the user, and it fits comfortably in Cloudflare's free tier.
 
-## Scope
+## How it works
 
-- One application and one allowed Discord server.
-- Between 1 and 100 dice, with 2 to 1000 sides per die.
-- Optional integer modifier between -1000000 and +1000000.
-- At most 32 characters of dice notation, with no arbitrary expression evaluation.
-- Public results containing each roll and the total. Invalid dice inputs receive a private error.
-- Web Crypto randomness with rejection sampling, signed-request verification, and a 64 KiB request body limit.
-- No database, message-content access, game-account linking, moderation system, voice connection, or paid API.
+- **Signed requests only.** Every interaction, including Discord's PING, has to carry a valid Ed25519 signature over the timestamp and the raw body. Stale or future timestamps are rejected, and the request body is capped at 64 KiB.
+- **Locked to one app and one server.** Commands from any other application or guild are refused.
+- **Real randomness.** Rolls use Web Crypto with rejection sampling, so there is no modulo bias.
+- **Bounded input.** 1 to 100 dice, 2 to 1000 sides, a modifier up to ±1,000,000, and at most 32 characters of notation. It parses dice notation, it never evaluates expressions.
+- **Clean failures.** A bad roll gets a private error that only the sender sees. Mentions are disabled in every reply.
+- **No secrets at runtime.** The deployed Worker only needs the public key. The bot token is used once, locally, to register the command.
 
-## Hosting limits
+Checked live in a Discord test server: `/roll 2d20+3` returned `2d20+3: [2, 16] = 21`, and `/roll 101d6` returned a private error.
 
-Cloudflare Workers Free currently includes 100,000 requests per day per account and 10 ms CPU time per request. Requests to other Workers in the same account share the daily allowance. Usage beyond the free limits can fail. This sample does not promise unlimited hosting, guaranteed availability, or a particular performance level.
+## Tests
 
-Use an account you control and verify that it is on Workers Free before deploying. This project does not need a paid plan or paid storage. A service fee would cover configuration, installation, testing and handoff. The hosting provider is Cloudflare.
-
-Limits checked September 17, 2026: [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
-
-## Local checks
-
-Use Node.js 22 or newer.
+32 tests cover the dice parser, signature checks, and command registration, plus a smoke test against the local Workers runtime. Node.js 22+.
 
 ```sh
 npm ci
 npm test
 npm run typecheck
 npm run check:types
-npm run check:deploy
+npm run check:deploy   # bundles with --dry-run, publishes nothing
 node scripts/runtime-smoke.mjs
 ```
 
-`check:deploy` bundles the Worker with `--dry-run`; it does not publish it. Tests use a generated signing key, not a real Discord token.
+Tests sign requests with a generated key, never a real Discord token.
 
 ## Set up your own server
 
@@ -72,7 +65,7 @@ The script creates or updates only this application's `/roll` guild command. It 
 
 Every interaction, including PING, must carry a valid Ed25519 signature over the timestamp and the original request bytes. Timestamps older than five minutes or more than 30 seconds in the future are rejected. Application and server IDs are checked for commands. Mentions are disabled in responses.
 
-The handler does not log interaction bodies, user messages, or bot tokens. Sampled platform invocation logs and traces are enabled in `wrangler.jsonc`; review the provider's settings and retention when handing over a client deployment. The root health endpoint only confirms that the HTTP handler responds. It does not verify Discord configuration.
+The handler does not log interaction bodies, user messages, or bot tokens. Sampled platform invocation logs and traces are enabled in `wrangler.jsonc`; review the retention settings before going live. The root health endpoint only confirms that the HTTP handler responds. It does not verify Discord configuration.
 
 Requests are handled immediately, with no outbound calls or deferred jobs. Do not add slow API calls without implementing Discord's response deadlines and appropriate limits. Music, continuous message monitoring and other Gateway features need a separate design.
 
